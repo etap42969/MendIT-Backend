@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
 from database import engine, Base, get_db
@@ -68,11 +68,37 @@ def get_video(video_id: int, db: Session = Depends(get_db)):
 
 # ── Favoritos ─────────────────────────────────────────────────────────────────
 
-@app.get("/favoritos/{user_id}", response_model=List[FavoritoResponse])
-def get_favoritos(user_id: int, db: Session = Depends(get_db)):
-    return db.query(Favorito).filter(Favorito.user_id == user_id).all()
+def _fav_to_dict(fav: Favorito) -> dict:
+    v = fav.video
+    return {
+        "id": fav.id,
+        "video_id": fav.video_id,
+        "user_id": fav.user_id,
+        "video": {
+            "id": v.id,
+            "titulo": v.titulo,
+            "descricao_curta": v.descricao_curta,
+            "descricao": v.descricao,
+            "video_url": v.video_url,
+            "duration": v.duration,
+            "views": v.views,
+            "categoria": v.categoria,
+            "ferramentas": v.ferramentas,
+            "dicas_seguranca": v.dicas_seguranca,
+        } if v else None,
+    }
 
-@app.post("/favoritos", response_model=FavoritoResponse)
+@app.get("/favoritos/{user_id}")
+def get_favoritos(user_id: int, db: Session = Depends(get_db)):
+    favs = (
+        db.query(Favorito)
+        .options(joinedload(Favorito.video))
+        .filter(Favorito.user_id == user_id)
+        .all()
+    )
+    return [_fav_to_dict(f) for f in favs]
+
+@app.post("/favoritos")
 def add_favorito(body: AddFavoritoRequest, db: Session = Depends(get_db)):
     existing = db.query(Favorito).filter(
         Favorito.user_id == body.user_id,
@@ -84,7 +110,13 @@ def add_favorito(body: AddFavoritoRequest, db: Session = Depends(get_db)):
     db.add(fav)
     db.commit()
     db.refresh(fav)
-    return fav
+    fav = (
+        db.query(Favorito)
+        .options(joinedload(Favorito.video))
+        .filter(Favorito.id == fav.id)
+        .first()
+    )
+    return _fav_to_dict(fav)
 
 @app.delete("/favoritos/{favorito_id}")
 def remove_favorito(favorito_id: int, db: Session = Depends(get_db)):
