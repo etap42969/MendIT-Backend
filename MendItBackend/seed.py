@@ -121,7 +121,7 @@ def seed():
     db.add_all(videos)
     db.commit()
     db.close()
-    print("✅ Base de dados populada com vídeos de exemplo!")
+    print("Base de dados populada com videos de exemplo!")
 
 if __name__ == "__main__":
     seed()
