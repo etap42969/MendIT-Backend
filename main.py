@@ -11,12 +11,21 @@ from schemas import (
 )
 from auth import hash_password, verify_password, create_token
 from seed import seed
+import sys
+import logging
 
-# Cria as tabelas e popula com dados de exemplo
-Base.metadata.create_all(bind=engine)
-seed()
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="MendIt API", version="1.0.0")
+
+@app.on_event("startup")
+def on_startup():
+    logger.info("Iniciando criacao de tabelas...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Tabelas criadas. A fazer seed...")
+    seed()
+    logger.info("Startup completo!")
 
 # CORS — permite ligações do emulador Android e dispositivos locais
 app.add_middleware(

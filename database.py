@@ -17,7 +17,7 @@ if DATABASE_URL.startswith("sqlite"):
         poolclass=StaticPool,
     )
 else:
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 10})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
